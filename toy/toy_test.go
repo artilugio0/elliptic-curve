@@ -149,6 +149,41 @@ func TestPointAdd(t *testing.T) {
 	}
 }
 
+func TestPointScalarMul(t *testing.T) {
+	ec, _ := NewEllipticCurve(1, 6, 11)
+	ec2_2_17, _ := NewEllipticCurve(2, 2, 17)
+
+	tt := []struct {
+		p        Point
+		k        int64
+		expected Point
+	}{
+		{p: ec.Infinity(), k: 100, expected: ec.Infinity()},
+		{p: ec.NewPoint(2, 4), k: 2, expected: ec.NewPoint(5, 9)},
+		{p: ec.NewPoint(2, 4), k: 3, expected: ec.NewPoint(8, 8)},
+		{p: ec.NewPoint(2, 4), k: 4, expected: ec.NewPoint(10, 9)},
+		{p: ec.NewPoint(2, 4), k: -1, expected: ec.NewPoint(2, 7)},
+		{p: ec2_2_17.NewPoint(0, 6), k: 2, expected: ec2_2_17.NewPoint(9, 1)},
+		{p: ec2_2_17.NewPoint(0, 6), k: 3, expected: ec2_2_17.NewPoint(6, 3)},
+		{p: ec2_2_17.NewPoint(0, 6), k: 4, expected: ec2_2_17.NewPoint(7, 6)},
+		{p: ec2_2_17.NewPoint(0, 6), k: -1, expected: ec2_2_17.NewPoint(0, 11)},
+	}
+
+	for _, tc := range tt {
+		t.Run(fmt.Sprintf("%d * %+v", tc.k, tc.p), func(t *testing.T) {
+			got := tc.p.ScalarMul(tc.k)
+
+			if got != tc.expected {
+				t.Errorf("got %+v, expected %+v", got, tc.expected)
+			}
+
+			if !tc.p.ec.IsOnCurve(got) {
+				t.Errorf("the result (%+v) is not on curve", got)
+			}
+		})
+	}
+}
+
 func TestEllipticCurveIsOnCurve(t *testing.T) {
 	ec1, _ := NewEllipticCurve(2, 2, 17)
 

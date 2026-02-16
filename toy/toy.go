@@ -95,6 +95,21 @@ func (p Point) Add(q Point) Point {
 	return p.ec.NewPoint(x, y)
 }
 
+func (p Point) ScalarMul(k int64) Point {
+	p1 := p
+	if k < 0 {
+		k = -k
+		p1 = p1.Neg()
+	}
+
+	result := p1.ec.Infinity()
+	for i := int64(0); i < k; i++ {
+		result = result.Add(p1)
+	}
+
+	return result
+}
+
 func (p Point) String() string {
 	if p.inf {
 		return "∞"
