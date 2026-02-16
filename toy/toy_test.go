@@ -61,19 +61,20 @@ func TestModInverse(t *testing.T) {
 	}
 }
 
-func TestNewPoint(t *testing.T) {
+func TestEllipticCurveNewPoint(t *testing.T) {
+	ec, _ := NewEllipticCurve(2, 2, 17)
 	tt := []struct {
-		x, y, m int64
-		p       Point
+		x, y int64
+		p    Point
 	}{
-		{x: 10, y: 5, m: 15, p: Point{x: 10, y: 5, m: 15}},
-		{x: 10, y: 5, m: 9, p: Point{x: 1, y: 5, m: 9}},
-		{x: 10, y: 15, m: 7, p: Point{x: 3, y: 1, m: 7}},
+		{x: 10, y: 5, p: Point{x: 10, y: 5, ec: ec}},
+		{x: 10, y: 19, p: Point{x: 10, y: 2, ec: ec}},
+		{x: 18, y: 15, p: Point{x: 1, y: 15, ec: ec}},
 	}
 
 	for _, tc := range tt {
-		t.Run(fmt.Sprintf("(%d, %d) (mod %d)", tc.x, tc.y, tc.m), func(t *testing.T) {
-			p := NewPoint(tc.x, tc.y, tc.m)
+		t.Run(fmt.Sprintf("(%d, %d) (mod 17)", tc.x, tc.y), func(t *testing.T) {
+			p := ec.NewPoint(tc.x, tc.y)
 
 			if p != tc.p {
 				t.Errorf("got %+v, expected %+v", p, tc.p)
@@ -83,20 +84,23 @@ func TestNewPoint(t *testing.T) {
 }
 
 func TestInfinity(t *testing.T) {
-	if !Infinity().IsInfinity() {
+	ec, _ := NewEllipticCurve(2, 2, 17)
+	if !ec.Infinity().IsInfinity() {
 		t.Errorf("expected IsInfinity to be true")
 	}
 }
 
 func TestPointNeg(t *testing.T) {
+	ec, _ := NewEllipticCurve(2, 2, 17)
+
 	tt := []struct {
 		p   Point
 		neg Point
 	}{
-		{p: Point{x: 10, y: 5, m: 15}, neg: Point{x: 10, y: 10, m: 15}},
-		{p: Point{x: 1, y: 5, m: 9}, neg: Point{x: 1, y: 4, m: 9}},
-		{p: Point{x: 3, y: 1, m: 7}, neg: Point{x: 3, y: 6, m: 7}},
-		{p: Point{inf: true}, neg: Point{inf: true}},
+		{p: Point{x: 10, y: 5, ec: ec}, neg: Point{x: 10, y: 12, ec: ec}},
+		{p: Point{x: 1, y: 16, ec: ec}, neg: Point{x: 1, y: 1, ec: ec}},
+		{p: Point{x: 3, y: 1, ec: ec}, neg: Point{x: 3, y: 16, ec: ec}},
+		{p: Point{inf: true, ec: ec}, neg: Point{inf: true, ec: ec}},
 	}
 
 	for _, tc := range tt {
@@ -105,6 +109,68 @@ func TestPointNeg(t *testing.T) {
 
 			if neg != tc.neg {
 				t.Errorf("got %+v, expected %+v", neg, tc.neg)
+			}
+		})
+	}
+}
+
+func TestPointAdd(t *testing.T) {
+	ec, _ := NewEllipticCurve(1, 6, 11)
+	ec2_2_17, _ := NewEllipticCurve(2, 2, 17)
+
+	tt := []struct {
+		p1       Point
+		p2       Point
+		expected Point
+	}{
+		{p1: ec.Infinity(), p2: ec.Infinity(), expected: ec.Infinity()},
+		{p1: ec.Infinity(), p2: ec.NewPoint(2, 4), expected: ec.NewPoint(2, 4)},
+		{p1: ec.NewPoint(2, 4), p2: ec.Infinity(), expected: ec.NewPoint(2, 4)},
+		{p1: ec.NewPoint(2, 4), p2: ec.NewPoint(3, 5), expected: ec.NewPoint(7, 2)},
+		{p1: ec.NewPoint(2, 4), p2: ec.NewPoint(2, 7), expected: ec.Infinity()},
+		{p1: ec.NewPoint(2, 4), p2: ec.NewPoint(3, 6), expected: ec.NewPoint(10, 2)},
+		{p1: ec.NewPoint(2, 4), p2: ec.NewPoint(2, 4), expected: ec.NewPoint(5, 9)},
+		{p1: ec2_2_17.NewPoint(0, 6), p2: ec2_2_17.NewPoint(3, 1), expected: ec2_2_17.NewPoint(13, 10)},
+		{p1: ec2_2_17.NewPoint(0, 6), p2: ec2_2_17.NewPoint(0, 6), expected: ec2_2_17.NewPoint(9, 1)},
+	}
+
+	for _, tc := range tt {
+		t.Run(fmt.Sprintf("%+v + %v", tc.p1, tc.p2), func(t *testing.T) {
+			got := tc.p1.Add(tc.p2)
+
+			if got != tc.expected {
+				t.Errorf("got %+v, expected %+v", got, tc.expected)
+			}
+
+			if !tc.p1.ec.IsOnCurve(got) {
+				t.Errorf("the result (%+v) is not on curve", got)
+			}
+		})
+	}
+}
+
+func TestEllipticCurveIsOnCurve(t *testing.T) {
+	ec1, _ := NewEllipticCurve(2, 2, 17)
+
+	tt := []struct {
+		ec       EllipticCurve
+		p        Point
+		expected bool
+	}{
+		{ec: ec1, p: ec1.NewPoint(0, 6), expected: true},
+		{ec: ec1, p: ec1.NewPoint(3, 1), expected: true},
+		{ec: ec1, p: ec1.NewPoint(5, 1), expected: true},
+		{ec: ec1, p: ec1.NewPoint(10, 6), expected: true},
+		{ec: ec1, p: ec1.NewPoint(1, 2), expected: false},
+		{ec: ec1, p: ec1.Infinity(), expected: true},
+	}
+
+	for _, tc := range tt {
+		t.Run(fmt.Sprintf("%+v", tc.p), func(t *testing.T) {
+			got := tc.ec.IsOnCurve(tc.p)
+
+			if got != tc.expected {
+				t.Errorf("got %+v, expected %+v", got, tc.expected)
 			}
 		})
 	}
