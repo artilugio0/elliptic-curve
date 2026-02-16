@@ -197,20 +197,20 @@ func TestPointScalarMul(t *testing.T) {
 
 	tt := []struct {
 		p        Point
-		k        int64
+		k        *big.Int
 		expected Point
 	}{
-		{p: ec.Infinity(), k: 100, expected: ec.Infinity()},
-		{p: ec.Infinity(), k: 0, expected: ec.Infinity()},
-		{p: ec.NewPoint(big.NewInt(2), big.NewInt(4)), k: 0, expected: ec.Infinity()},
-		{p: ec.NewPoint(big.NewInt(2), big.NewInt(4)), k: 2, expected: ec.NewPoint(big.NewInt(5), big.NewInt(9))},
-		{p: ec.NewPoint(big.NewInt(2), big.NewInt(4)), k: 3, expected: ec.NewPoint(big.NewInt(8), big.NewInt(8))},
-		{p: ec.NewPoint(big.NewInt(2), big.NewInt(4)), k: 4, expected: ec.NewPoint(big.NewInt(10), big.NewInt(9))},
-		{p: ec.NewPoint(big.NewInt(2), big.NewInt(4)), k: -1, expected: ec.NewPoint(big.NewInt(2), big.NewInt(7))},
-		{p: ec2_2_17.NewPoint(big.NewInt(0), big.NewInt(6)), k: 2, expected: ec2_2_17.NewPoint(big.NewInt(9), big.NewInt(1))},
-		{p: ec2_2_17.NewPoint(big.NewInt(0), big.NewInt(6)), k: 3, expected: ec2_2_17.NewPoint(big.NewInt(6), big.NewInt(3))},
-		{p: ec2_2_17.NewPoint(big.NewInt(0), big.NewInt(6)), k: 4, expected: ec2_2_17.NewPoint(big.NewInt(7), big.NewInt(6))},
-		{p: ec2_2_17.NewPoint(big.NewInt(0), big.NewInt(6)), k: -1, expected: ec2_2_17.NewPoint(big.NewInt(0), big.NewInt(11))},
+		{p: ec.Infinity(), k: big.NewInt(100), expected: ec.Infinity()},
+		{p: ec.Infinity(), k: big.NewInt(0), expected: ec.Infinity()},
+		{p: ec.NewPoint(big.NewInt(2), big.NewInt(4)), k: big.NewInt(0), expected: ec.Infinity()},
+		{p: ec.NewPoint(big.NewInt(2), big.NewInt(4)), k: big.NewInt(2), expected: ec.NewPoint(big.NewInt(5), big.NewInt(9))},
+		{p: ec.NewPoint(big.NewInt(2), big.NewInt(4)), k: big.NewInt(3), expected: ec.NewPoint(big.NewInt(8), big.NewInt(8))},
+		{p: ec.NewPoint(big.NewInt(2), big.NewInt(4)), k: big.NewInt(4), expected: ec.NewPoint(big.NewInt(10), big.NewInt(9))},
+		{p: ec.NewPoint(big.NewInt(2), big.NewInt(4)), k: big.NewInt(-1), expected: ec.NewPoint(big.NewInt(2), big.NewInt(7))},
+		{p: ec2_2_17.NewPoint(big.NewInt(0), big.NewInt(6)), k: big.NewInt(2), expected: ec2_2_17.NewPoint(big.NewInt(9), big.NewInt(1))},
+		{p: ec2_2_17.NewPoint(big.NewInt(0), big.NewInt(6)), k: big.NewInt(3), expected: ec2_2_17.NewPoint(big.NewInt(6), big.NewInt(3))},
+		{p: ec2_2_17.NewPoint(big.NewInt(0), big.NewInt(6)), k: big.NewInt(4), expected: ec2_2_17.NewPoint(big.NewInt(7), big.NewInt(6))},
+		{p: ec2_2_17.NewPoint(big.NewInt(0), big.NewInt(6)), k: big.NewInt(-1), expected: ec2_2_17.NewPoint(big.NewInt(0), big.NewInt(11))},
 	}
 
 	for _, tc := range tt {

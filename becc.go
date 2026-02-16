@@ -6,6 +6,7 @@ import (
 )
 
 var (
+	bi_1 *big.Int = big.NewInt(-1)
 	bi0  *big.Int = big.NewInt(0)
 	bi1  *big.Int = big.NewInt(1)
 	bi2  *big.Int = big.NewInt(2)
@@ -170,21 +171,47 @@ func (p Point) Add(q Point) Point {
 	}
 }
 
-func (p Point) ScalarMul(k int64) Point {
-	if k < 0 {
+/*
+func (p Point) ScalarMul(k *big.Int) Point {
+	// right to left
+
+	k = new(big.Int).Set(k)
+	if k.Cmp(bi0) == -1 {
 		p = p.Neg()
-		k = -k
+		k = k.Mul(k, bi_1)
 	}
 
 	result := p.ec.Infinity()
 	addend := p
-	for k > 0 {
-		if k&1 == 1 {
+	for i := range k.BitLen() {
+		if k.Bit(i) == 1 {
 			result = result.Add(addend)
 		}
 
-		k = k >> 1
 		addend = addend.Add(addend)
+	}
+
+	return result
+}
+*/
+
+func (p Point) ScalarMul(k *big.Int) Point {
+	// left to right
+
+	k = new(big.Int).Set(k)
+	if k.Cmp(bi0) == -1 {
+		p = p.Neg()
+		k = k.Mul(k, bi_1)
+	}
+
+	result := p.ec.Infinity()
+	bitlen := k.BitLen()
+	for i := bitlen - 1; i >= 0; i-- {
+		result = result.Add(result)
+
+		if k.Bit(i) == 1 {
+			result = result.Add(p)
+		}
 	}
 
 	return result
