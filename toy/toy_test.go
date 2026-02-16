@@ -159,6 +159,8 @@ func TestPointScalarMul(t *testing.T) {
 		expected Point
 	}{
 		{p: ec.Infinity(), k: 100, expected: ec.Infinity()},
+		{p: ec.Infinity(), k: 0, expected: ec.Infinity()},
+		{p: ec.NewPoint(2, 4), k: 0, expected: ec.Infinity()},
 		{p: ec.NewPoint(2, 4), k: 2, expected: ec.NewPoint(5, 9)},
 		{p: ec.NewPoint(2, 4), k: 3, expected: ec.NewPoint(8, 8)},
 		{p: ec.NewPoint(2, 4), k: 4, expected: ec.NewPoint(10, 9)},

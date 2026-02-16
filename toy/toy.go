@@ -96,15 +96,20 @@ func (p Point) Add(q Point) Point {
 }
 
 func (p Point) ScalarMul(k int64) Point {
-	p1 := p
 	if k < 0 {
+		p = p.Neg()
 		k = -k
-		p1 = p1.Neg()
 	}
 
-	result := p1.ec.Infinity()
-	for i := int64(0); i < k; i++ {
-		result = result.Add(p1)
+	result := p.ec.Infinity()
+	addend := p
+	for k > 0 {
+		if k&1 == 1 {
+			result = result.Add(addend)
+		}
+
+		k = k >> 1
+		addend = addend.Add(addend)
 	}
 
 	return result
