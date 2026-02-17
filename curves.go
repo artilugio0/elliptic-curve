@@ -15,14 +15,13 @@ var (
 	Secp256k1H = big.NewInt(1)
 )
 
-func Secp256k1() (EllipticCurve, Point) {
+func Secp256k1() (EllipticCurve, Point, *big.Int) {
 	ec, err := NewEllipticCurve(Secp256k1A, Secp256k1B, Secp256k1P)
 	if err != nil {
 		panic(err)
 	}
 
-	ec.n = Secp256k1N
 	g := ec.NewPoint(Secp256k1Gx, Secp256k1Gy)
 
-	return ec, g
+	return ec, g, Secp256k1N
 }

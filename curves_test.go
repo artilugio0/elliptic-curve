@@ -7,7 +7,7 @@ import (
 )
 
 func Secp256k1Test(t *testing.T) {
-	ec, g := Secp256k1()
+	ec, g, _ := Secp256k1()
 	tt := []struct {
 		p       Point
 		belongs bool

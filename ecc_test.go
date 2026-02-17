@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func Secp256k1ECDSAVerify(t *testing.T) {
+func Secp256k1ECCVerify(t *testing.T) {
 	tt := []struct {
 		msg, key, r, s string
 	}{
@@ -137,8 +137,7 @@ func Secp256k1ECDSAVerify(t *testing.T) {
 		},
 	}
 
-	ecdsa := Secp256k1ECDSA()
-	_, g := Secp256k1()
+	ecc := Secp256k1ECC()
 
 	for _, tc := range tt {
 		t.Run(tc.msg, func(t *testing.T) {
@@ -147,14 +146,14 @@ func Secp256k1ECDSAVerify(t *testing.T) {
 			r, _ := new(big.Int).SetString(tc.r, 16)
 			s, _ := new(big.Int).SetString(tc.s, 16)
 
-			pubKey := g.ScalarMul(key)
+			pubKey := ecc.PubKey(key)
 
-			if !ecdsa.Verify(msg, pubKey, r, s) {
+			if !ecc.Verify(pubKey, SHA256, msg, r, s) {
 				t.Errorf("verification failed")
 			}
 
 			msg = append(msg, 'x')
-			if ecdsa.Verify(msg, pubKey, r, s) {
+			if ecc.Verify(pubKey, SHA256, msg, r, s) {
 				t.Errorf("verification succeeded with invalid message")
 			}
 		})

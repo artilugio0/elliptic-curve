@@ -6,16 +6,29 @@ import (
 	"math/big"
 )
 
-type ECDSA struct {
+type ECC struct {
 	ec EllipticCurve
 	g  Point
 	n  *big.Int
 }
 
-func (e *ECDSA) Sign(key *big.Int, message []byte) (*big.Int, *big.Int, error) {
-	h := sha256.New()
-	h.Write(message)
-	hash := h.Sum(nil)
+func (e *ECC) GenKeyPair() (*big.Int, Point, error) {
+	key, err := rand.Int(rand.Reader, e.n)
+	if err != nil {
+		return nil, Point{}, err
+	}
+
+	pubKey := e.PubKey(key)
+
+	return key, pubKey, nil
+}
+
+func (e *ECC) PubKey(key *big.Int) Point {
+	return e.g.ScalarMul(key)
+}
+
+func (e *ECC) Sign(key *big.Int, hf HashFunc, message []byte) (*big.Int, *big.Int, error) {
+	hash := hf(message)
 
 	z := new(big.Int).SetBytes(hash[:])
 	z.Mod(z, e.n)
@@ -55,14 +68,12 @@ func (e *ECDSA) Sign(key *big.Int, message []byte) (*big.Int, *big.Int, error) {
 
 }
 
-func (e *ECDSA) Verify(message []byte, pubKey Point, r, s *big.Int) bool {
+func (e *ECC) Verify(pubKey Point, hf HashFunc, message []byte, r, s *big.Int) bool {
 	if r.Cmp(bi1) < 0 || s.Cmp(bi1) < 0 || r.Cmp(e.n) >= 0 || s.Cmp(e.n) >= 0 {
 		return false
 	}
 
-	h := sha256.New()
-	h.Write(message)
-	hash := h.Sum(nil)
+	hash := hf(message)
 
 	z := new(big.Int).SetBytes(hash[:])
 	z.Mod(z, e.n)
@@ -79,12 +90,22 @@ func (e *ECDSA) Verify(message []byte, pubKey Point, r, s *big.Int) bool {
 	return x.Cmp(r) == 0
 }
 
-func Secp256k1ECDSA() *ECDSA {
-	ec, g := Secp256k1()
+type HashFunc = func([]byte) []byte
 
-	return &ECDSA{
+func SHA256(m []byte) []byte {
+	h := sha256.New()
+	h.Write(m)
+	hash := h.Sum(nil)
+
+	return hash
+}
+
+func Secp256k1ECC() *ECC {
+	ec, g, n := Secp256k1()
+
+	return &ECC{
 		ec: ec,
 		g:  g,
-		n:  Secp256k1N,
+		n:  n,
 	}
 }

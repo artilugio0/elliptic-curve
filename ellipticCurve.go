@@ -9,8 +9,6 @@ var (
 	bi_1 *big.Int = big.NewInt(-1)
 	bi0  *big.Int = big.NewInt(0)
 	bi1  *big.Int = big.NewInt(1)
-	bi2  *big.Int = big.NewInt(2)
-	bi3  *big.Int = big.NewInt(3)
 	bi4  *big.Int = big.NewInt(4)
 	bi27 *big.Int = big.NewInt(27)
 )
@@ -42,8 +40,6 @@ func modInverse(n, m *big.Int) *big.Int {
 type EllipticCurve struct {
 	a, b *FieldElement
 	m    *big.Int
-
-	n *big.Int
 }
 
 var ErrInvalidParameters error = fmt.Errorf("invalid elliptic curve parameters")
@@ -102,6 +98,14 @@ type Point struct {
 
 	x, y *FieldElement
 	inf  bool
+}
+
+func (p Point) X() *big.Int {
+	return new(big.Int).Set(p.x.n)
+}
+
+func (p Point) Y() *big.Int {
+	return new(big.Int).Set(p.y.n)
 }
 
 func (p Point) String() string {
