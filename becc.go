@@ -42,6 +42,8 @@ func modInverse(n, m *big.Int) *big.Int {
 type EllipticCurve struct {
 	a, b *FieldElement
 	m    *big.Int
+
+	n *big.Int
 }
 
 var ErrInvalidParameters error = fmt.Errorf("invalid elliptic curve parameters")
@@ -106,7 +108,7 @@ func (p Point) String() string {
 	if p.inf {
 		return "∞"
 	}
-	return fmt.Sprintf("(%s, %s)", p.x, p.y)
+	return fmt.Sprintf("(0x%064x, 0x%064x)", p.x.n, p.y.n)
 }
 
 func (p Point) IsInfinity() bool {

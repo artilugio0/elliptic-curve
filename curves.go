@@ -21,6 +21,7 @@ func Secp256k1() (EllipticCurve, Point) {
 		panic(err)
 	}
 
+	ec.n = Secp256k1N
 	g := ec.NewPoint(Secp256k1Gx, Secp256k1Gy)
 
 	return ec, g
