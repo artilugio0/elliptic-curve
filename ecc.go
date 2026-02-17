@@ -33,12 +33,16 @@ func (e *ECC) Sign(key *big.Int, hf HashFunc, message []byte) (*big.Int, *big.In
 	z := new(big.Int).SetBytes(hash[:])
 	z.Mod(z, e.n)
 
+	nSub1 := new(big.Int).Sub(e.n, bi1)
+	nHalf := new(big.Int).Div(e.n, bi2)
+
 	var rx, s *big.Int
 	for {
-		k, err := rand.Int(rand.Reader, e.n)
+		k, err := rand.Int(rand.Reader, nSub1)
 		if err != nil {
 			return nil, nil, err
 		}
+		k.Add(k, bi1) // ensure k in [1, n-1]
 
 		r := e.g.ScalarMul(k)
 		if r.IsInfinity() {
@@ -61,6 +65,11 @@ func (e *ECC) Sign(key *big.Int, hf HashFunc, message []byte) (*big.Int, *big.In
 		s.Mod(s, e.n)
 		if s.Sign() == 0 {
 			continue
+		}
+
+		// low-s normalization
+		if s.Cmp(nHalf) > 0 {
+			s.Sub(e.n, s)
 		}
 
 		return rx, s, nil

@@ -9,6 +9,7 @@ var (
 	bi_1 *big.Int = big.NewInt(-1)
 	bi0  *big.Int = big.NewInt(0)
 	bi1  *big.Int = big.NewInt(1)
+	bi2  *big.Int = big.NewInt(2)
 	bi4  *big.Int = big.NewInt(4)
 	bi27 *big.Int = big.NewInt(27)
 )
