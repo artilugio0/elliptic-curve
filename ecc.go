@@ -1,9 +1,14 @@
 package becc
 
 import (
+	"bytes"
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
+	"hash"
+	"math"
 	"math/big"
+	"slices"
 )
 
 type ECC struct {
@@ -52,12 +57,9 @@ func (e *ECC) GenKeyPair() (PrivateKey, PublicKey, error) {
 	return priv, pub, nil
 }
 
-type HashFunc = func([]byte) []byte
+type HashFunc = func() hash.Hash
 
-func SHA256(m []byte) []byte {
-	h := sha256.Sum256(m)
-	return h[:]
-}
+var SHA256 = sha256.New
 
 func Secp256k1ECC() *ECC {
 	ec, g, n := Secp256k1()
@@ -79,7 +81,9 @@ func (priv PrivateKey) Int() *big.Int {
 }
 
 func (priv PrivateKey) Sign(hf HashFunc, message []byte) (Signature, error) {
-	hash := hf(message)
+	h := hf()
+	h.Write(message)
+	hash := h.Sum(nil)
 
 	z := new(big.Int).SetBytes(hash[:])
 	z.Mod(z, priv.ecc.n)
@@ -98,10 +102,6 @@ func (priv PrivateKey) Sign(hf HashFunc, message []byte) (Signature, error) {
 		r := priv.ecc.g.ScalarMul(k)
 		if r.IsInfinity() {
 			continue
-		}
-
-		if !priv.ecc.ec.IsOnCurve(r) {
-			panic("r not on curve")
 		}
 
 		rx = new(big.Int).Mod(r.x.n, priv.ecc.n)
@@ -128,6 +128,115 @@ func (priv PrivateKey) Sign(hf HashFunc, message []byte) (Signature, error) {
 			s: s,
 		}, nil
 	}
+}
+
+func (priv PrivateKey) SignDeterministic(hf HashFunc, message []byte) (Signature, error) {
+	h := hf()
+	h.Write(message)
+	hash := h.Sum(nil)
+
+	z := new(big.Int).SetBytes(hash[:])
+	z.Mod(z, priv.ecc.n)
+
+	hlen := h.Size()
+	qlen := priv.ecc.n.BitLen()
+	rlen := int(math.Ceil(float64(qlen) / 8.0))
+
+	dBytes := priv.d.Bytes()
+	// pad to rlen
+	if len(dBytes) < rlen {
+		dBytes = slices.Concat(bytes.Repeat([]byte{0}, rlen-len(dBytes)), dBytes)
+	}
+
+	hInt := new(big.Int).SetBytes(hash)
+	hInt.Mod(hInt, priv.ecc.n)
+
+	mBytes := hInt.Bytes()
+	// pad to rlen
+	if len(mBytes) < rlen {
+		mBytes = slices.Concat(bytes.Repeat([]byte{0}, rlen-len(mBytes)), mBytes)
+	}
+
+	V := bytes.Repeat([]byte{0x01}, hlen)
+	K := bytes.Repeat([]byte{0x00}, hlen)
+
+	hm := hmac.New(hf, K)
+	hm.Write(slices.Concat(V, []byte{0x00}, dBytes, mBytes))
+	K = hm.Sum(nil)
+
+	hm = hmac.New(hf, K)
+	hm.Write(V)
+	V = hm.Sum(nil)
+
+	hm.Reset()
+	hm.Write(slices.Concat(V, []byte{0x01}, dBytes, mBytes))
+	K = hm.Sum(nil)
+
+	hm = hmac.New(hf, K)
+	hm.Write(V)
+	V = hm.Sum(nil)
+
+	var rx, s *big.Int
+	var r Point
+	var T []byte
+
+	nHalf := new(big.Int).Div(priv.ecc.n, bi2)
+
+	for {
+		T = []byte{}
+
+		for len(T) < rlen {
+			hm.Reset()
+			hm.Write(V)
+			V = hm.Sum(nil)
+			T = slices.Concat(T, V)
+		}
+		k := new(big.Int).SetBytes(T[:rlen])
+
+		if k.Cmp(bi1) <= 0 || k.Cmp(priv.ecc.n) >= 0 {
+			goto retry
+		}
+
+		r = priv.ecc.g.ScalarMul(k)
+		if r.IsInfinity() {
+			goto retry
+		}
+
+		rx = new(big.Int).Mod(r.x.n, priv.ecc.n)
+		if rx.Sign() == 0 {
+			goto retry
+		}
+
+		s = new(big.Int).Mul(
+			modInverse(k, priv.ecc.n),
+			new(big.Int).Add(z, new(big.Int).Mul(rx, priv.d)),
+		)
+		s.Mod(s, priv.ecc.n)
+		if s.Sign() == 0 {
+			goto retry
+		}
+
+		// low-s normalization
+		if s.Cmp(nHalf) > 0 {
+			s.Sub(priv.ecc.n, s)
+		}
+
+		return Signature{
+			r: rx,
+			s: s,
+		}, nil
+
+	retry:
+		hm.Reset()
+		hm.Write(slices.Concat(V, []byte{0x00}))
+		K = hm.Sum(nil)
+		hm = hmac.New(hf, K)
+		hm.Write(V)
+		V = hm.Sum(nil)
+		continue
+	}
+
+	return Signature{}, nil
 }
 
 func (priv PrivateKey) PublicKey() PublicKey {
@@ -161,7 +270,9 @@ func (pub PublicKey) Verify(hf HashFunc, message []byte, sig Signature) bool {
 		return false
 	}
 
-	hash := hf(message)
+	h := hf()
+	h.Write(message)
+	hash := h.Sum(nil)
 
 	z := new(big.Int).SetBytes(hash[:])
 	z.Mod(z, pub.ecc.n)
