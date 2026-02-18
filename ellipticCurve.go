@@ -49,8 +49,8 @@ func NewEllipticCurve(a, b, m *big.Int) (EllipticCurve, error) {
 	fa := NewFieldElement(a, m)
 	fb := NewFieldElement(b, m)
 
-	disc := fa.Mul(fa).Mul(NewFieldElement(bi4, m)).
-		Add(fb.Mul(fb).Mul(fb).Mul(NewFieldElement(bi27, m)))
+	disc := fa.Mul(fa).Mul(fa).Mul(NewFieldElement(bi4, m)).
+		Add(fb.Mul(fb).Mul(NewFieldElement(bi27, m)))
 
 	if disc.Eq(NewFieldElement(bi0, m)) {
 		return EllipticCurve{}, ErrInvalidParameters
