@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestSecp256k1ECCVerify(t *testing.T) {
+func TestSecp256k1ECDSAVerify(t *testing.T) {
 	tt := []struct {
 		msg, key, r, s string
 	}{
@@ -160,4 +160,51 @@ func TestSecp256k1ECCVerify(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSecp256k1ECDH(t *testing.T) {
+	ecc := Secp256k1ECC()
+
+	tt := []struct {
+		priv     PrivateKey
+		pub2     PublicKey
+		expected string
+	}{
+		{
+			priv: ecc.NewPrivateKey(bigIntHex(t, "3ce3262f2fba436f7cc4ed0914a6471a2a73fb1accc5f2852951a483efeba817")),
+			pub2: ecc.NewPublicKeyXY(
+				bigIntHex(t, "8041e097f009aaca2922ab41e47271aa867890a697c987186ca9d4b2cd49efcd"),
+				bigIntHex(t, "e05363a55e1739d6afd9018cb3e00ca83020afc2a4163d08af84e6f01ec8d60f")),
+			expected: "036c1a667578265442782516859a762f733022a2af7283da3d95202c7ee0b7a736",
+		},
+		{
+			priv: ecc.NewPrivateKey(bigIntHex(t, "3ce3262f2fba436f7cc4ed0914a6471a2a73fb1accc5f2852951a483efeba817")),
+			pub2: ecc.NewPublicKeyXY(
+				bigIntHex(t, "86da8b28a6b399063ebc373e2f657e8c53d3862953acbe339ce23f6d066ca8b8"),
+				bigIntHex(t, "bca9f27d41addfe81f0834a2d05aaf7a81910a982da2d54e63c46e2e04685579")),
+			expected: "0282c2795a1c400537c796daa7e74b9f23e14cb4f74a8f4364556cf6a74467d24d",
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.expected, func(t *testing.T) {
+			secret := tc.priv.ECDH(tc.pub2)
+			got := new(big.Int).SetBytes(secret)
+
+			if bigIntHex(t, tc.expected).Cmp(got) != 0 {
+				t.Errorf("got %x, expected %s", got, tc.expected)
+			}
+		})
+	}
+}
+
+func bigIntHex(t *testing.T, s string) *big.Int {
+	t.Helper()
+
+	i, ok := new(big.Int).SetString(s, 16)
+	if !ok {
+		t.Fatalf("invalid hex string")
+	}
+
+	return i
 }

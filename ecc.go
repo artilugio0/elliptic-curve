@@ -26,6 +26,13 @@ func (e *ECC) NewPublicKey(p Point) PublicKey {
 	}
 }
 
+func (e *ECC) NewPublicKeyXY(x, y *big.Int) PublicKey {
+	return PublicKey{
+		p:   e.ec.NewPoint(x, y),
+		ecc: e,
+	}
+}
+
 func (e *ECC) GenKeyPair() (PrivateKey, PublicKey, error) {
 	d, err := rand.Int(rand.Reader, e.n)
 	if err != nil {
@@ -130,6 +137,17 @@ func (priv PrivateKey) PublicKey() PublicKey {
 		p:   p,
 		ecc: priv.ecc,
 	}
+}
+
+func (priv PrivateKey) ECDH(pub2 PublicKey) []byte {
+	point := pub2.p.ScalarMul(priv.d)
+	yEven := new(big.Int).Mod(point.y.n, bi2)
+
+	if yEven.Sign() == 0 {
+		return append([]byte{2}, point.x.n.Bytes()...)
+	}
+
+	return append([]byte{3}, point.x.n.Bytes()...)
 }
 
 type PublicKey struct {
