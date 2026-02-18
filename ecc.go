@@ -12,101 +12,44 @@ type ECC struct {
 	n  *big.Int
 }
 
-func (e *ECC) GenKeyPair() (*big.Int, Point, error) {
-	key, err := rand.Int(rand.Reader, e.n)
+func (e *ECC) NewPrivateKey(d *big.Int) PrivateKey {
+	return PrivateKey{
+		d:   d,
+		ecc: e,
+	}
+}
+
+func (e *ECC) NewPublicKey(p Point) PublicKey {
+	return PublicKey{
+		p:   p,
+		ecc: e,
+	}
+}
+
+func (e *ECC) GenKeyPair() (PrivateKey, PublicKey, error) {
+	d, err := rand.Int(rand.Reader, e.n)
 	if err != nil {
-		return nil, Point{}, err
+		return PrivateKey{}, PublicKey{}, err
 	}
 
-	pubKey := e.PubKey(key)
-
-	return key, pubKey, nil
-}
-
-func (e *ECC) PubKey(key *big.Int) Point {
-	return e.g.ScalarMul(key)
-}
-
-func (e *ECC) Sign(key *big.Int, hf HashFunc, message []byte) (*big.Int, *big.Int, error) {
-	hash := hf(message)
-
-	z := new(big.Int).SetBytes(hash[:])
-	z.Mod(z, e.n)
-
-	nSub1 := new(big.Int).Sub(e.n, bi1)
-	nHalf := new(big.Int).Div(e.n, bi2)
-
-	var rx, s *big.Int
-	for {
-		k, err := rand.Int(rand.Reader, nSub1)
-		if err != nil {
-			return nil, nil, err
-		}
-		k.Add(k, bi1) // ensure k in [1, n-1]
-
-		r := e.g.ScalarMul(k)
-		if r.IsInfinity() {
-			continue
-		}
-
-		if !e.ec.IsOnCurve(r) {
-			panic("r not on curve")
-		}
-
-		rx = new(big.Int).Mod(r.x.n, e.n)
-		if rx.Sign() == 0 {
-			continue
-		}
-
-		s = new(big.Int).Mul(
-			modInverse(k, e.n),
-			new(big.Int).Add(z, new(big.Int).Mul(rx, key)),
-		)
-		s.Mod(s, e.n)
-		if s.Sign() == 0 {
-			continue
-		}
-
-		// low-s normalization
-		if s.Cmp(nHalf) > 0 {
-			s.Sub(e.n, s)
-		}
-
-		return rx, s, nil
+	priv := PrivateKey{
+		d:   d,
+		ecc: e,
 	}
 
-}
-
-func (e *ECC) Verify(pubKey Point, hf HashFunc, message []byte, r, s *big.Int) bool {
-	if r.Cmp(bi1) < 0 || s.Cmp(bi1) < 0 || r.Cmp(e.n) >= 0 || s.Cmp(e.n) >= 0 {
-		return false
+	pub := PublicKey{
+		p:   e.g.ScalarMul(d),
+		ecc: e,
 	}
 
-	hash := hf(message)
-
-	z := new(big.Int).SetBytes(hash[:])
-	z.Mod(z, e.n)
-
-	w := modInverse(s, e.n)
-	u1 := new(big.Int).Mul(z, w)
-	u1.Mod(u1, e.n)
-	u2 := new(big.Int).Mul(r, w)
-	u2.Mod(u2, e.n)
-
-	R := e.g.ScalarMul(u1).Add(pubKey.ScalarMul(u2))
-
-	x := new(big.Int).Mod(R.x.n, e.n)
-	return x.Cmp(r) == 0
+	return priv, pub, nil
 }
 
 type HashFunc = func([]byte) []byte
 
 func SHA256(m []byte) []byte {
-	h := sha256.New()
-	h.Write(m)
-	hash := h.Sum(nil)
-
-	return hash
+	h := sha256.Sum256(m)
+	return h[:]
 }
 
 func Secp256k1ECC() *ECC {
@@ -117,4 +60,130 @@ func Secp256k1ECC() *ECC {
 		g:  g,
 		n:  n,
 	}
+}
+
+type PrivateKey struct {
+	d   *big.Int
+	ecc *ECC
+}
+
+func (priv PrivateKey) Int() *big.Int {
+	return new(big.Int).Set(priv.d)
+}
+
+func (priv PrivateKey) Sign(hf HashFunc, message []byte) (Signature, error) {
+	hash := hf(message)
+
+	z := new(big.Int).SetBytes(hash[:])
+	z.Mod(z, priv.ecc.n)
+
+	nSub1 := new(big.Int).Sub(priv.ecc.n, bi1)
+	nHalf := new(big.Int).Div(priv.ecc.n, bi2)
+
+	var rx, s *big.Int
+	for {
+		k, err := rand.Int(rand.Reader, nSub1)
+		if err != nil {
+			return Signature{}, err
+		}
+		k.Add(k, bi1) // ensure k in [1, n-1]
+
+		r := priv.ecc.g.ScalarMul(k)
+		if r.IsInfinity() {
+			continue
+		}
+
+		if !priv.ecc.ec.IsOnCurve(r) {
+			panic("r not on curve")
+		}
+
+		rx = new(big.Int).Mod(r.x.n, priv.ecc.n)
+		if rx.Sign() == 0 {
+			continue
+		}
+
+		s = new(big.Int).Mul(
+			modInverse(k, priv.ecc.n),
+			new(big.Int).Add(z, new(big.Int).Mul(rx, priv.d)),
+		)
+		s.Mod(s, priv.ecc.n)
+		if s.Sign() == 0 {
+			continue
+		}
+
+		// low-s normalization
+		if s.Cmp(nHalf) > 0 {
+			s.Sub(priv.ecc.n, s)
+		}
+
+		return Signature{
+			r: rx,
+			s: s,
+		}, nil
+	}
+}
+
+func (priv PrivateKey) PublicKey() PublicKey {
+	p := priv.ecc.g.ScalarMul(priv.d)
+
+	return PublicKey{
+		p:   p,
+		ecc: priv.ecc,
+	}
+}
+
+type PublicKey struct {
+	p   Point
+	ecc *ECC
+}
+
+func (pub PublicKey) Verify(hf HashFunc, message []byte, sig Signature) bool {
+	if sig.r.Cmp(bi1) < 0 || sig.s.Cmp(bi1) < 0 ||
+		sig.r.Cmp(pub.ecc.n) >= 0 || sig.s.Cmp(pub.ecc.n) >= 0 {
+		return false
+	}
+
+	hash := hf(message)
+
+	z := new(big.Int).SetBytes(hash[:])
+	z.Mod(z, pub.ecc.n)
+
+	w := modInverse(sig.s, pub.ecc.n)
+	u1 := new(big.Int).Mul(z, w)
+	u1.Mod(u1, pub.ecc.n)
+	u2 := new(big.Int).Mul(sig.r, w)
+	u2.Mod(u2, pub.ecc.n)
+
+	R := pub.ecc.g.ScalarMul(u1).Add(pub.p.ScalarMul(u2))
+
+	x := new(big.Int).Mod(R.x.n, pub.ecc.n)
+	return x.Cmp(sig.r) == 0
+}
+
+func (pub PublicKey) X() *big.Int {
+	return pub.p.X()
+}
+
+func (pub PublicKey) Y() *big.Int {
+	return pub.p.Y()
+}
+
+type Signature struct {
+	r *big.Int
+	s *big.Int
+}
+
+func NewSignature(r, s *big.Int) Signature {
+	return Signature{
+		r: r,
+		s: s,
+	}
+}
+
+func (sig Signature) R() *big.Int {
+	return new(big.Int).Set(sig.r)
+}
+
+func (sig Signature) S() *big.Int {
+	return new(big.Int).Set(sig.s)
 }

@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func Secp256k1ECCVerify(t *testing.T) {
+func TestSecp256k1ECCVerify(t *testing.T) {
 	tt := []struct {
 		msg, key, r, s string
 	}{
@@ -146,14 +146,16 @@ func Secp256k1ECCVerify(t *testing.T) {
 			r, _ := new(big.Int).SetString(tc.r, 16)
 			s, _ := new(big.Int).SetString(tc.s, 16)
 
-			pubKey := ecc.PubKey(key)
+			privKey := ecc.NewPrivateKey(key)
+			pubKey := privKey.PublicKey()
 
-			if !ecc.Verify(pubKey, SHA256, msg, r, s) {
+			sig := NewSignature(r, s)
+			if !pubKey.Verify(SHA256, msg, sig) {
 				t.Errorf("verification failed")
 			}
 
 			msg = append(msg, 'x')
-			if ecc.Verify(pubKey, SHA256, msg, r, s) {
+			if pubKey.Verify(SHA256, msg, sig) {
 				t.Errorf("verification succeeded with invalid message")
 			}
 		})
