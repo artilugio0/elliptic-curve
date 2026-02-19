@@ -18,9 +18,6 @@ func beccCmd() *cobra.Command {
 		Use:   "becc",
 		Short: "Basic Elliptic Curve Cryptography",
 		Long:  `Basic elliptic curve cryptography tool that implement the most used cryptographic operations.`,
-		Args:  cobra.NoArgs,
-		Run: func(cmd *cobra.Command, args []string) {
-		},
 	}
 
 	cmd.PersistentFlags().StringVarP(&curve, "curve", "c", curveDefault, "Elliptic curve to use")
@@ -29,6 +26,7 @@ func beccCmd() *cobra.Command {
 
 	cmd.AddCommand(ecdsaCmd())
 	cmd.AddCommand(ecdhCmd())
+	cmd.AddCommand(key())
 
 	return cmd
 }
