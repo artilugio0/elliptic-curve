@@ -80,7 +80,7 @@ func (priv PrivateKey) Int() *big.Int {
 	return new(big.Int).Set(priv.d)
 }
 
-func (priv PrivateKey) Sign(hf HashFunc, message []byte) (Signature, error) {
+func (priv PrivateKey) Sign(hf HashFunc, message []byte, lowS bool) (Signature, error) {
 	h := hf()
 	h.Write(message)
 	hash := h.Sum(nil)
@@ -119,7 +119,7 @@ func (priv PrivateKey) Sign(hf HashFunc, message []byte) (Signature, error) {
 		}
 
 		// low-s normalization
-		if s.Cmp(nHalf) > 0 {
+		if lowS && s.Cmp(nHalf) > 0 {
 			s.Sub(priv.ecc.n, s)
 		}
 
@@ -130,7 +130,7 @@ func (priv PrivateKey) Sign(hf HashFunc, message []byte) (Signature, error) {
 	}
 }
 
-func (priv PrivateKey) SignDeterministic(hf HashFunc, message []byte) (Signature, error) {
+func (priv PrivateKey) SignDeterministic(hf HashFunc, message []byte, lowS bool) (Signature, error) {
 	h := hf()
 	h.Write(message)
 	hash := h.Sum(nil)
@@ -217,7 +217,7 @@ func (priv PrivateKey) SignDeterministic(hf HashFunc, message []byte) (Signature
 		}
 
 		// low-s normalization
-		if s.Cmp(nHalf) > 0 {
+		if lowS && s.Cmp(nHalf) > 0 {
 			s.Sub(priv.ecc.n, s)
 		}
 
@@ -252,11 +252,11 @@ func (priv PrivateKey) ECDH(pub2 PublicKey) []byte {
 	point := pub2.p.ScalarMul(priv.d)
 	yEven := new(big.Int).Mod(point.y.n, bi2)
 
-	if yEven.Sign() == 0 {
-		return append([]byte{2}, point.x.n.Bytes()...)
-	}
+	bs := point.x.n.Bytes()
+	padding := bytes.Repeat([]byte{0x00}, 32-len(bs))
+	header := []byte{byte(2 + yEven.Sign())}
 
-	return append([]byte{3}, point.x.n.Bytes()...)
+	return slices.Concat(header, padding, bs)
 }
 
 type PublicKey struct {
