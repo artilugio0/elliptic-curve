@@ -26,7 +26,8 @@ func beccCmd() *cobra.Command {
 
 	cmd.AddCommand(ecdsaCmd())
 	cmd.AddCommand(ecdhCmd())
-	cmd.AddCommand(key())
+	cmd.AddCommand(keyCmd())
+	cmd.AddCommand(hybridCmd())
 
 	return cmd
 }

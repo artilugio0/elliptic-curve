@@ -106,11 +106,16 @@ func (ec EllipticCurve) Y(x *big.Int) []*big.Int {
 	}
 
 	y2 := new(big.Int).Sub(ec.m, y1)
+	y2.Mod(y2, ec.m)
 	if y1.Cmp(y2) == 0 {
 		return []*big.Int{y1}
 	}
 
-	return []*big.Int{y1, y2}
+	if y1.Cmp(y2) < 0 {
+		return []*big.Int{y1, y2}
+	}
+
+	return []*big.Int{y2, y1}
 }
 
 type Point struct {

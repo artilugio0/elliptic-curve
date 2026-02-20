@@ -11,22 +11,24 @@ func TestSecp256k1HybridEncryption(t *testing.T) {
 
 	plaintext := "this is a test plaintext"
 
-	priv, pub, err := ecc.GenKeyPair()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	for range 10 {
+		priv, pub, err := ecc.GenKeyPair()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
-	ciphertext, err := pub.Encrypt(strings.NewReader(plaintext))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+		ciphertext, err := pub.Encrypt(strings.NewReader(plaintext))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
-	decrypted, err := priv.Decrypt(bytes.NewReader(ciphertext))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+		decrypted, err := priv.Decrypt(bytes.NewReader(ciphertext))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
-	if string(decrypted) != plaintext {
-		t.Errorf("got '%s', expected '%s'", string(decrypted), plaintext)
+		if string(decrypted) != plaintext {
+			t.Errorf("got '%s', expected '%s'", string(decrypted), plaintext)
+		}
 	}
 }

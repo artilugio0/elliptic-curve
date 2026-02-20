@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"hash"
 	"math"
 	"math/big"
@@ -40,12 +41,14 @@ func (e *ECC) NewPublicKeyXY(x, y *big.Int) PublicKey {
 }
 
 func (e *ECC) NewPublicKeyCompressed(c []byte) (PublicKey, error) {
-	if len(c) != 33 {
+	if len(c) != 33 || (c[0] != 2 && c[0] != 3) {
 		return PublicKey{}, errors.New("invalid key format")
 	}
 
 	x := new(big.Int).SetBytes(c[1:])
 	ys := e.ec.Y(x)
+
+	fmt.Printf("ys: %+v\n", ys)
 
 	if len(ys) == 0 {
 		return PublicKey{}, errors.New("invalid x value")
@@ -63,7 +66,9 @@ func (e *ECC) NewPublicKeyCompressed(c []byte) (PublicKey, error) {
 		}, nil
 	}
 
-	if new(big.Int).Mod(ys[0], bi2).Sign() == 0 && evenY {
+	parity := int(c[0] % 2)
+	ys0Parity := new(big.Int).Mod(ys[0], bi2).Sign()
+	if ys0Parity == parity {
 		return PublicKey{
 			p:   e.ec.NewPoint(x, ys[0]),
 			ecc: e,
@@ -331,11 +336,11 @@ func (pub PublicKey) Y() *big.Int {
 }
 
 func (pub PublicKey) Compressed() []byte {
-	yEven := new(big.Int).Mod(pub.p.y.n, bi2)
+	yParity := new(big.Int).Mod(pub.p.y.n, bi2).Sign()
 
 	bs := pub.p.x.n.Bytes()
 	padding := bytes.Repeat([]byte{0x00}, 32-len(bs))
-	header := []byte{byte(2 + yEven.Sign())}
+	header := []byte{byte(2 + yParity)}
 
 	return slices.Concat(header, padding, bs)
 }

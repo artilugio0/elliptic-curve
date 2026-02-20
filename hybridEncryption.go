@@ -24,7 +24,6 @@ func (pub PublicKey) Encrypt(input io.Reader) ([]byte, error) {
 	}
 
 	sharedSecret := ePriv.ECDH(pub)
-	fmt.Printf("encrypt shared secret : %+v\n", sharedSecret)
 
 	info := "becc hybrid file encryption v1"
 	keyMaterial, err := hkdf.Expand(sha256.New, sharedSecret, info, 32+12)
@@ -34,7 +33,8 @@ func (pub PublicKey) Encrypt(input io.Reader) ([]byte, error) {
 
 	aesKey := keyMaterial[:32]
 	aesNonce := keyMaterial[32:]
-	fmt.Printf("encrypt aes nonce: %+v\n", aesNonce)
+
+	fmt.Printf("encrypt shared secret: %+v\n", sharedSecret)
 
 	block, err := aes.NewCipher(aesKey)
 	if err != nil {
@@ -63,15 +63,13 @@ func (priv PrivateKey) Decrypt(input io.Reader) ([]byte, error) {
 	aesNonce := inputBytes[33:45]
 	ciphertext := inputBytes[45:]
 
-	fmt.Printf("decrypt aes nonce: %+v\n", aesNonce)
-
 	pub, err := priv.ecc.NewPublicKeyCompressed(compressedPub)
 	if err != nil {
 		return nil, err
 	}
 
 	sharedSecret := priv.ECDH(pub)
-	fmt.Printf("decrypt shared secret : %+v\n", sharedSecret)
+	fmt.Printf("decrypt shared secret: %+v\n", sharedSecret)
 
 	info := "becc hybrid file encryption v1"
 	keyMaterial, err := hkdf.Expand(sha256.New, sharedSecret, info, 32+12)

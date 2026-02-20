@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func key() *cobra.Command {
+func keyCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "key",
 		Short: "Elliptic curve key operations",

@@ -227,3 +227,48 @@ func TestPointScalarMul(t *testing.T) {
 		})
 	}
 }
+
+func TestEllipticCurveY(t *testing.T) {
+	ec1, _ := NewEllipticCurve(big.NewInt(2), big.NewInt(0), big.NewInt(17))
+
+	tt := []struct {
+		ec       EllipticCurve
+		x        *big.Int
+		expected []*big.Int
+	}{
+		{ec: ec1, x: big.NewInt(0), expected: []*big.Int{big.NewInt(0)}},
+		{ec: ec1, x: big.NewInt(1), expected: []*big.Int{}},
+		{ec: ec1, x: big.NewInt(2), expected: []*big.Int{}},
+		{ec: ec1, x: big.NewInt(3), expected: []*big.Int{big.NewInt(4), big.NewInt(13)}},
+		{ec: ec1, x: big.NewInt(4), expected: []*big.Int{big.NewInt(2), big.NewInt(15)}},
+		{ec: ec1, x: big.NewInt(5), expected: []*big.Int{big.NewInt(4), big.NewInt(13)}},
+		{ec: ec1, x: big.NewInt(6), expected: []*big.Int{}},
+		{ec: ec1, x: big.NewInt(7), expected: []*big.Int{big.NewInt(0)}},
+		{ec: ec1, x: big.NewInt(8), expected: []*big.Int{big.NewInt(1), big.NewInt(16)}},
+		{ec: ec1, x: big.NewInt(9), expected: []*big.Int{big.NewInt(4), big.NewInt(13)}},
+		{ec: ec1, x: big.NewInt(10), expected: []*big.Int{big.NewInt(0)}},
+		{ec: ec1, x: big.NewInt(11), expected: []*big.Int{}},
+		{ec: ec1, x: big.NewInt(12), expected: []*big.Int{big.NewInt(1), big.NewInt(16)}},
+		{ec: ec1, x: big.NewInt(13), expected: []*big.Int{big.NewInt(8), big.NewInt(9)}},
+		{ec: ec1, x: big.NewInt(14), expected: []*big.Int{big.NewInt(1), big.NewInt(16)}},
+		{ec: ec1, x: big.NewInt(15), expected: []*big.Int{}},
+		{ec: ec1, x: big.NewInt(16), expected: []*big.Int{}},
+	}
+
+	for _, tc := range tt {
+		t.Run(fmt.Sprintf("%+v", tc.x), func(t *testing.T) {
+			got := tc.ec.Y(tc.x)
+
+			if len(got) != len(tc.expected) {
+				t.Fatalf("got %+v, expected %+v", got, tc.expected)
+			}
+
+			for i, y := range got {
+				if tc.expected[i].Cmp(y) != 0 {
+					t.Errorf("got %+v, expected %+v", got, tc.expected)
+					return
+				}
+			}
+		})
+	}
+}
