@@ -5,6 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
+	"errors"
 	"hash"
 	"math"
 	"math/big"
@@ -36,6 +37,43 @@ func (e *ECC) NewPublicKeyXY(x, y *big.Int) PublicKey {
 		p:   e.ec.NewPoint(x, y),
 		ecc: e,
 	}
+}
+
+func (e *ECC) NewPublicKeyCompressed(c []byte) (PublicKey, error) {
+	if len(c) != 33 {
+		return PublicKey{}, errors.New("invalid key format")
+	}
+
+	x := new(big.Int).SetBytes(c[1:])
+	ys := e.ec.Y(x)
+
+	if len(ys) == 0 {
+		return PublicKey{}, errors.New("invalid x value")
+	}
+
+	evenY := c[0] == 2
+	if len(ys) == 1 {
+		if new(big.Int).Mod(ys[0], bi2).Sign() == 0 && !evenY {
+			return PublicKey{}, errors.New("invalid y parity")
+		}
+
+		return PublicKey{
+			p:   e.ec.NewPoint(x, ys[0]),
+			ecc: e,
+		}, nil
+	}
+
+	if new(big.Int).Mod(ys[0], bi2).Sign() == 0 && evenY {
+		return PublicKey{
+			p:   e.ec.NewPoint(x, ys[0]),
+			ecc: e,
+		}, nil
+	}
+
+	return PublicKey{
+		p:   e.ec.NewPoint(x, ys[1]),
+		ecc: e,
+	}, nil
 }
 
 func (e *ECC) GenKeyPair() (PrivateKey, PublicKey, error) {
@@ -249,14 +287,9 @@ func (priv PrivateKey) PublicKey() PublicKey {
 }
 
 func (priv PrivateKey) ECDH(pub2 PublicKey) []byte {
-	point := pub2.p.ScalarMul(priv.d)
-	yEven := new(big.Int).Mod(point.y.n, bi2)
-
-	bs := point.x.n.Bytes()
-	padding := bytes.Repeat([]byte{0x00}, 32-len(bs))
-	header := []byte{byte(2 + yEven.Sign())}
-
-	return slices.Concat(header, padding, bs)
+	sharedPoint := pub2.p.ScalarMul(priv.d)
+	sharedKey := priv.ecc.NewPublicKey(sharedPoint)
+	return sharedKey.Compressed()
 }
 
 type PublicKey struct {
@@ -295,6 +328,16 @@ func (pub PublicKey) X() *big.Int {
 
 func (pub PublicKey) Y() *big.Int {
 	return pub.p.Y()
+}
+
+func (pub PublicKey) Compressed() []byte {
+	yEven := new(big.Int).Mod(pub.p.y.n, bi2)
+
+	bs := pub.p.x.n.Bytes()
+	padding := bytes.Repeat([]byte{0x00}, 32-len(bs))
+	header := []byte{byte(2 + yEven.Sign())}
+
+	return slices.Concat(header, padding, bs)
 }
 
 type Signature struct {

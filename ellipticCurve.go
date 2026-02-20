@@ -94,6 +94,25 @@ func (ec EllipticCurve) IsOnCurve(p Point) bool {
 	return lhs.Eq(rhs)
 }
 
+func (ec EllipticCurve) Y(x *big.Int) []*big.Int {
+	ySquared := new(big.Int).Mul(x, x)
+	ySquared.Mul(ySquared, x).
+		Add(ySquared, new(big.Int).Mul(ec.a.n, x)).
+		Add(ySquared, ec.b.n)
+
+	y1 := new(big.Int).ModSqrt(ySquared, ec.m)
+	if y1 == nil {
+		return []*big.Int{}
+	}
+
+	y2 := new(big.Int).Sub(ec.m, y1)
+	if y1.Cmp(y2) == 0 {
+		return []*big.Int{y1}
+	}
+
+	return []*big.Int{y1, y2}
+}
+
 type Point struct {
 	ec EllipticCurve
 
