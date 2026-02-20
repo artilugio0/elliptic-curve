@@ -6,7 +6,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"errors"
-	"fmt"
 	"hash"
 	"math"
 	"math/big"
@@ -47,8 +46,6 @@ func (e *ECC) NewPublicKeyCompressed(c []byte) (PublicKey, error) {
 
 	x := new(big.Int).SetBytes(c[1:])
 	ys := e.ec.Y(x)
-
-	fmt.Printf("ys: %+v\n", ys)
 
 	if len(ys) == 0 {
 		return PublicKey{}, errors.New("invalid x value")

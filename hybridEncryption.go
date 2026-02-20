@@ -7,7 +7,6 @@ import (
 	"crypto/hkdf"
 	"crypto/sha256"
 	"errors"
-	"fmt"
 	"io"
 	"slices"
 )
@@ -33,8 +32,6 @@ func (pub PublicKey) Encrypt(input io.Reader) ([]byte, error) {
 
 	aesKey := keyMaterial[:32]
 	aesNonce := keyMaterial[32:]
-
-	fmt.Printf("encrypt shared secret: %+v\n", sharedSecret)
 
 	block, err := aes.NewCipher(aesKey)
 	if err != nil {
@@ -69,7 +66,6 @@ func (priv PrivateKey) Decrypt(input io.Reader) ([]byte, error) {
 	}
 
 	sharedSecret := priv.ECDH(pub)
-	fmt.Printf("decrypt shared secret: %+v\n", sharedSecret)
 
 	info := "becc hybrid file encryption v1"
 	keyMaterial, err := hkdf.Expand(sha256.New, sharedSecret, info, 32+12)
