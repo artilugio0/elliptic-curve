@@ -14,13 +14,13 @@ import (
 func hybridCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "hybrid",
-		Short: "Hybrid encryption/decryption of stdin using elliptic curve + AES-GSM",
+		Short: "Hybrid encryption/decryption using elliptic curve + AES-GSM",
 		Args:  cobra.NoArgs,
 	}
 
 	encryptCmd := &cobra.Command{
 		Use:   "encrypt remote-pub-key",
-		Short: "Hybrid encryption of stdin using elliptic curve + AES-GSM",
+		Short: "Hybrid encryption using elliptic curve + AES-GSM reading the input from stdin",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			curve := cmd.Flags().Lookup("curve").Value.String()
@@ -58,7 +58,7 @@ func hybridCmd() *cobra.Command {
 
 	decryptCmd := &cobra.Command{
 		Use:   "decrypt remote-pub-key",
-		Short: "Hybrid decryption of stdin using elliptic curve + AES-GSM",
+		Short: "Hybrid decryption using elliptic curve + AES-GSM reading the input from stdin",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			curve := cmd.Flags().Lookup("curve").Value.String()
