@@ -13,9 +13,10 @@ import (
 )
 
 type ECC struct {
-	ec EllipticCurve
-	g  Point
-	n  *big.Int
+	ec       EllipticCurve
+	g        Point
+	n        *big.Int
+	security int
 }
 
 func (e *ECC) NewPrivateKey(d *big.Int) PrivateKey {
@@ -40,15 +41,23 @@ func (e *ECC) NewPublicKeyXY(x, y *big.Int) PublicKey {
 }
 
 func (e *ECC) NewPublicKeyCompressed(c []byte) (PublicKey, error) {
-	if len(c) != 33 || (c[0] != 2 && c[0] != 3) {
-		return PublicKey{}, errors.New("invalid key format")
+	if len(c) == 0 {
+		return PublicKey{}, errors.New("invalid key format: invalid length")
+	}
+
+	if c[0] != 2 && c[0] != 3 {
+		return PublicKey{}, errors.New("invalid key format: invalid header")
+	}
+
+	if len(c) != e.Security()/4+1 {
+		return PublicKey{}, errors.New("invalid key format: invalid length")
 	}
 
 	x := new(big.Int).SetBytes(c[1:])
 	ys := e.ec.Y(x)
 
 	if len(ys) == 0 {
-		return PublicKey{}, errors.New("invalid x value")
+		return PublicKey{}, errors.New("invalid key: point not in curve")
 	}
 
 	evenY := c[0] == 2
@@ -78,6 +87,47 @@ func (e *ECC) NewPublicKeyCompressed(c []byte) (PublicKey, error) {
 	}, nil
 }
 
+func (e *ECC) NewPublicKeyUncompressed(c []byte) (PublicKey, error) {
+	if len(c) == 0 {
+		return PublicKey{}, errors.New("invalid key format: invalid length")
+	}
+
+	if c[0] != 4 {
+		return PublicKey{}, errors.New("invalid key format: invalid header")
+	}
+
+	if len(c) != e.Security()/2+1 {
+		return PublicKey{}, errors.New("invalid key format: invalid length")
+	}
+
+	coordLen := e.Security() / 4
+	x := new(big.Int).SetBytes(c[1 : coordLen+1])
+	y := new(big.Int).SetBytes(c[coordLen+1:])
+
+	p := e.ec.NewPoint(x, y)
+	if !e.ec.IsOnCurve(p) {
+		return PublicKey{}, errors.New("invalid key: point not in curve")
+	}
+
+	return e.NewPublicKeyXY(x, y), nil
+}
+
+func (e *ECC) NewPublicKeyBytes(c []byte) (PublicKey, error) {
+	if len(c) == 0 {
+		return PublicKey{}, errors.New("invalid key format: invalid length")
+	}
+
+	if c[0] == 2 || c[0] == 3 {
+		return e.NewPublicKeyCompressed(c)
+	}
+
+	if c[0] == 4 {
+		return e.NewPublicKeyUncompressed(c)
+	}
+
+	return PublicKey{}, errors.New("invalid key format: invalid header")
+}
+
 func (e *ECC) GenKeyPair() (PrivateKey, PublicKey, error) {
 	d, err := rand.Int(rand.Reader, e.n)
 	if err != nil {
@@ -97,6 +147,10 @@ func (e *ECC) GenKeyPair() (PrivateKey, PublicKey, error) {
 	return priv, pub, nil
 }
 
+func (e *ECC) Security() int {
+	return e.security
+}
+
 type HashFunc = func() hash.Hash
 
 var SHA256 = sha256.New
@@ -105,9 +159,43 @@ func Secp256k1ECC() *ECC {
 	ec, g, n := Secp256k1()
 
 	return &ECC{
-		ec: ec,
-		g:  g,
-		n:  n,
+		ec:       ec,
+		g:        g,
+		n:        n,
+		security: 128,
+	}
+}
+
+func Secp256r1ECC() *ECC {
+	ec, g, n := Secp256r1()
+
+	return &ECC{
+		ec:       ec,
+		g:        g,
+		n:        n,
+		security: 128,
+	}
+}
+
+func Secp384r1ECC() *ECC {
+	ec, g, n := Secp384r1()
+
+	return &ECC{
+		ec:       ec,
+		g:        g,
+		n:        n,
+		security: 192,
+	}
+}
+
+func Secp521r1ECC() *ECC {
+	ec, g, n := Secp521r1()
+
+	return &ECC{
+		ec:       ec,
+		g:        g,
+		n:        n,
+		security: 256,
 	}
 }
 
@@ -336,7 +424,8 @@ func (pub PublicKey) Compressed() []byte {
 	yParity := new(big.Int).Mod(pub.p.y.n, bi2).Sign()
 
 	bs := pub.p.x.n.Bytes()
-	padding := bytes.Repeat([]byte{0x00}, 32-len(bs))
+	paddedLen := pub.ecc.Security() / 4
+	padding := bytes.Repeat([]byte{0x00}, paddedLen-len(bs))
 	header := []byte{byte(2 + yParity)}
 
 	return slices.Concat(header, padding, bs)

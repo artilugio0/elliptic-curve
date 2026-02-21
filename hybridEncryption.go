@@ -56,9 +56,11 @@ func (priv PrivateKey) Decrypt(input io.Reader) ([]byte, error) {
 		return nil, err
 	}
 
-	compressedPub := inputBytes[:33]
-	aesNonce := inputBytes[33:45]
-	ciphertext := inputBytes[45:]
+	pubKeyLen := 1 + priv.ecc.Security()/4
+	nonceLen := 12
+	compressedPub := inputBytes[:pubKeyLen]
+	aesNonce := inputBytes[pubKeyLen : pubKeyLen+nonceLen]
+	ciphertext := inputBytes[pubKeyLen+nonceLen:]
 
 	pub, err := priv.ecc.NewPublicKeyCompressed(compressedPub)
 	if err != nil {

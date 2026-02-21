@@ -1,10 +1,8 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io"
-	"math/big"
 	"os"
 
 	"github.com/artilugio0/becc"
@@ -23,48 +21,15 @@ func ecdsaCmd() *cobra.Command {
 		Short: "Verify a signature using ECDSA reading the message from stdin",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			curve := cmd.Flags().Lookup("curve").Value.String()
-			var ecc *becc.ECC
-			switch curve {
-			case "secp256k1":
-				ecc = becc.Secp256k1ECC()
-			default:
-				return fmt.Errorf("invalid curve %q – supported values: secp256k1", curve)
+			publicKey, err := parsePublicKey(cmd)
+			if err != nil {
+				return err
 			}
 
-			publicKeyHex := cmd.Flags().Lookup("public-key").Value.String()
-			if publicKeyHex == "" {
-				return errors.New("public key not specified")
+			sig, err := parseSignature(cmd, args[0])
+			if err != nil {
+				return err
 			}
-
-			if len(publicKeyHex) != 130 || publicKeyHex[:2] != "04" {
-				return errors.New("invalid public key format")
-			}
-
-			x, ok := new(big.Int).SetString(publicKeyHex[2:66], 16)
-			if !ok {
-				return errors.New("invalid public key format: invalid x coordinate")
-			}
-
-			y, ok := new(big.Int).SetString(publicKeyHex[66:], 16)
-			if !ok {
-				return errors.New("invalid public key format: invalid y coordinate")
-			}
-
-			publicKey := ecc.NewPublicKeyXY(x, y)
-
-			sigHex := args[0]
-			r, ok := new(big.Int).SetString(sigHex[:64], 16)
-			if !ok {
-				return fmt.Errorf("invalid signature format: r value")
-			}
-
-			s, ok := new(big.Int).SetString(sigHex[64:], 16)
-			if !ok {
-				return fmt.Errorf("invalid signature format: r value")
-			}
-
-			sig := becc.NewSignature(r, s)
 
 			msg, err := io.ReadAll(os.Stdin)
 			if err != nil {
@@ -90,30 +55,10 @@ func ecdsaCmd() *cobra.Command {
 		Short: "Sign a message from stdin using ECDSA",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			curve := cmd.Flags().Lookup("curve").Value.String()
-			var ecc *becc.ECC
-			switch curve {
-			case "secp256k1":
-				ecc = becc.Secp256k1ECC()
-			default:
-				return fmt.Errorf("invalid curve %q – supported values: secp256k1", curve)
+			privateKey, err := parsePrivateKey(cmd)
+			if err != nil {
+				return err
 			}
-
-			privateKeyHex := cmd.Flags().Lookup("private-key").Value.String()
-			if privateKeyHex == "" {
-				return errors.New("private key not specified")
-			}
-
-			if len(privateKeyHex) != 64 {
-				return errors.New("invalid private key format")
-			}
-
-			d, ok := new(big.Int).SetString(privateKeyHex, 16)
-			if !ok {
-				return errors.New("invalid private key format")
-			}
-
-			privateKey := ecc.NewPrivateKey(d)
 
 			msg, err := io.ReadAll(os.Stdin)
 			if err != nil {
@@ -122,7 +67,6 @@ func ecdsaCmd() *cobra.Command {
 
 			var sig becc.Signature
 
-			fmt.Println(signLowS)
 			if signDeterministic {
 				sig, err = privateKey.SignDeterministic(becc.SHA256, msg, signLowS)
 			} else {

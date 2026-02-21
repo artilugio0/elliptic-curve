@@ -1,13 +1,8 @@
 package main
 
 import (
-	"encoding/hex"
-	"errors"
-	"fmt"
-	"math/big"
 	"os"
 
-	"github.com/artilugio0/becc"
 	"github.com/spf13/cobra"
 )
 
@@ -23,24 +18,9 @@ func hybridCmd() *cobra.Command {
 		Short: "Hybrid encryption using elliptic curve + AES-GSM reading the input from stdin",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			curve := cmd.Flags().Lookup("curve").Value.String()
-			var ecc *becc.ECC
-			switch curve {
-			case "secp256k1":
-				ecc = becc.Secp256k1ECC()
-			default:
-				return fmt.Errorf("invalid curve %q – supported values: secp256k1", curve)
-			}
-
-			remotePubKeyHex := args[0]
-			compressedPubKey, err := hex.DecodeString(remotePubKeyHex)
+			remotePubKey, err := parsePublicKeyString(cmd, args[0])
 			if err != nil {
-				return fmt.Errorf("invalid remote public key: %v", err)
-			}
-
-			remotePubKey, err := ecc.NewPublicKeyCompressed(compressedPubKey)
-			if err != nil {
-				return fmt.Errorf("invalid remote public: %v", err)
+				return err
 			}
 
 			ciphertext, err := remotePubKey.Encrypt(os.Stdin)
@@ -57,34 +37,14 @@ func hybridCmd() *cobra.Command {
 	}
 
 	decryptCmd := &cobra.Command{
-		Use:   "decrypt remote-pub-key",
+		Use:   "decrypt",
 		Short: "Hybrid decryption using elliptic curve + AES-GSM reading the input from stdin",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			curve := cmd.Flags().Lookup("curve").Value.String()
-			var ecc *becc.ECC
-			switch curve {
-			case "secp256k1":
-				ecc = becc.Secp256k1ECC()
-			default:
-				return fmt.Errorf("invalid curve %q – supported values: secp256k1", curve)
+			privateKey, err := parsePrivateKey(cmd)
+			if err != nil {
+				return err
 			}
-
-			privateKeyHex := cmd.Flags().Lookup("private-key").Value.String()
-			if privateKeyHex == "" {
-				return errors.New("private key not specified")
-			}
-
-			if len(privateKeyHex) != 64 {
-				return errors.New("invalid private key format")
-			}
-
-			d, ok := new(big.Int).SetString(privateKeyHex, 16)
-			if !ok {
-				return errors.New("invalid private key format")
-			}
-
-			privateKey := ecc.NewPrivateKey(d)
 
 			plaintext, err := privateKey.Decrypt(os.Stdin)
 			if err != nil {
